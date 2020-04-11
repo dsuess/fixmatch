@@ -1,0 +1,13 @@
+md5: afde34c3d1f90577c848c6be3db0d899
+cmd: ML_DATA=./data python ablation/ab_fixmatch_ra.py --dataset=cifar10.1@250-1 --train_dir
+  ./experiments/balanced --train_kimg 16384
+wdir: ../..
+deps:
+- md5: 83f30c5db9016308e33bbd78a2932159.dir
+  path: data
+outs:
+- md5: a50fc8a41533fec89106f67c6d7c771b.dir
+  path: experiments/balanced/cifar10.d.d.rac.1@250-1
+  cache: true
+  metric: false
+  persist: true
