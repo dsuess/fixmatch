@@ -1,9 +1,10 @@
-md5: 932fca577c698b940f1f5f5630d47f31
+md5: b5153fa17922d91a331c6feae3937f8d
 cmd: ML_DATA=./data ./build_datasets.sh
 wdir: ..
 outs:
 - md5: 83f30c5db9016308e33bbd78a2932159.dir
   path: data
-  cache: true
+  cache: false
   metric: false
   persist: false
+locked: true
