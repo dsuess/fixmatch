@@ -1,0 +1,13 @@
+md5: f5aadc070847a11b3856b6405d90f4f5
+cmd: python ablation/ab_fixmatch_ra.py --dataset=cifar10.2@250-1 --train_dir experiments/cifar10-25000-linear-1
+  --data_dir unbalanced_data/cifar10-25000-linear-1 -train_kimg 16384
+wdir: ../..
+deps:
+- md5: 0ec40e66767efd554ba48bb2abde8376.dir
+  path: unbalanced_data/cifar10-25000-linear-1
+outs:
+- md5: 7125a0059db0410b94734a7f75666aae.dir
+  path: experiments/cifar10-25000-linear-1/cifar10.d.d.rac.2@250-1
+  cache: true
+  metric: false
+  persist: true
