@@ -44,16 +44,19 @@ DATA_DIR = None
 _DATA_CACHE = None
 SAMPLES_PER_CLASS = [1, 2, 3, 4, 5, 10, 25, 100, 400]
 
-flags.DEFINE_string('dataset', 'cifar10.1@4000-5000', 'Data to train on.')
-flags.DEFINE_integer('para_parse', 1, 'Parallel parsing.')
-flags.DEFINE_integer('para_augment', 5, 'Parallel augmentation.')
-flags.DEFINE_integer('shuffle', 8192, 'Size of dataset shuffling.')
-flags.DEFINE_string('p_unlabeled', '', 'Probability distribution of unlabeled.')
-flags.DEFINE_bool('whiten', False, 'Whether to normalize images.')
-flags.DEFINE_string('data_dir', None,
-                    'Data directory. '
-                    'If None then environment variable ML_DATA '
-                    'will be used as a data directory.')
+flags.DEFINE_string("dataset", "cifar10.1@4000-5000", "Data to train on.")
+flags.DEFINE_integer("para_parse", 1, "Parallel parsing.")
+flags.DEFINE_integer("para_augment", 5, "Parallel augmentation.")
+flags.DEFINE_integer("shuffle", 8192, "Size of dataset shuffling.")
+flags.DEFINE_string("p_unlabeled", "", "Probability distribution of unlabeled.")
+flags.DEFINE_bool("whiten", False, "Whether to normalize images.")
+flags.DEFINE_string(
+    "data_dir",
+    None,
+    "Data directory. "
+    "If None then environment variable ML_DATA "
+    "will be used as a data directory.",
+)
 
 FLAGS = flags.FLAGS
 
@@ -61,7 +64,7 @@ FLAGS = flags.FLAGS
 def _data_setup():
     # set up data directory
     global DATA_DIR
-    DATA_DIR = FLAGS.data_dir or os.environ['ML_DATA']
+    DATA_DIR = FLAGS.data_dir or os.environ["ML_DATA"]
 
 
 app.call_after_init(_data_setup)
@@ -70,34 +73,41 @@ app.call_after_init(_data_setup)
 def record_parse_mnist(serialized_example, image_shape=None):
     features = tf.parse_single_example(
         serialized_example,
-        features={'image': tf.FixedLenFeature([], tf.string),
-                  'label': tf.FixedLenFeature([], tf.int64)})
-    image = tf.image.decode_image(features['image'])
+        features={
+            "image": tf.FixedLenFeature([], tf.string),
+            "label": tf.FixedLenFeature([], tf.int64),
+        },
+    )
+    image = tf.image.decode_image(features["image"])
     if image_shape:
         image.set_shape(image_shape)
     image = tf.pad(image, [[2] * 2, [2] * 2, [0] * 2])
     image = tf.cast(image, tf.float32) * (2.0 / 255) - 1.0
-    return dict(image=image, label=features['label'])
+    return dict(image=image, label=features["label"])
 
 
 def record_parse(serialized_example, image_shape=None):
     features = tf.parse_single_example(
         serialized_example,
-        features={'image': tf.FixedLenFeature([], tf.string),
-                  'label': tf.FixedLenFeature([], tf.int64)})
-    image = tf.image.decode_image(features['image'])
+        features={
+            "image": tf.FixedLenFeature([], tf.string),
+            "label": tf.FixedLenFeature([], tf.int64),
+        },
+    )
+    image = tf.image.decode_image(features["image"])
     if image_shape:
         image.set_shape(image_shape)
     image = tf.cast(image, tf.float32) * (2.0 / 255) - 1.0
-    return dict(image=image, label=features['label'])
+    return dict(image=image, label=features["label"])
 
 
 def compute_mean_std(data: tf.data.Dataset):
-    data = data.map(lambda x: x['image']).batch(1024).prefetch(1)
+    data = data.map(lambda x: x["image"]).batch(1024).prefetch(1)
     data = data.make_one_shot_iterator().get_next()
     count = 0
     stats = []
     with tf.Session(config=utils.get_config()) as sess:
+
         def iterator():
             while True:
                 try:
@@ -105,33 +115,52 @@ def compute_mean_std(data: tf.data.Dataset):
                 except tf.errors.OutOfRangeError:
                     break
 
-        for batch in tqdm(iterator(), unit='kimg', desc='Computing dataset mean and std'):
-            ratio = batch.shape[0] / 1024.
+        for batch in tqdm(
+            iterator(), unit="kimg", desc="Computing dataset mean and std"
+        ):
+            ratio = batch.shape[0] / 1024.0
             count += ratio
-            stats.append((batch.mean((0, 1, 2)) * ratio, (batch ** 2).mean((0, 1, 2)) * ratio))
+            stats.append(
+                (batch.mean((0, 1, 2)) * ratio, (batch ** 2).mean((0, 1, 2)) * ratio)
+            )
     mean = sum(x[0] for x in stats) / count
     sigma = sum(x[1] for x in stats) / count - mean ** 2
     std = np.sqrt(sigma)
-    print('Mean %s  Std: %s' % (mean, std))
+    print("Mean %s  Std: %s" % (mean, std))
     return mean, std
 
 
 class DataSet:
     """Wrapper for tf.data.Dataset to permit extensions."""
 
-    def __init__(self, data: tf.data.Dataset, augment_fn: AugmentPair, parse_fn=record_parse, image_shape=None):
+    def __init__(
+        self,
+        data: tf.data.Dataset,
+        augment_fn: AugmentPair,
+        parse_fn=record_parse,
+        image_shape=None,
+    ):
         self.data = data
         self.parse_fn = parse_fn
         self.augment_fn = augment_fn
         self.image_shape = image_shape
 
     @classmethod
-    def from_files(cls, filenames: list, augment_fn: AugmentPair, parse_fn=record_parse, image_shape=None):
+    def from_files(
+        cls,
+        filenames: list,
+        augment_fn: AugmentPair,
+        parse_fn=record_parse,
+        image_shape=None,
+    ):
         filenames_in = filenames
         filenames = sorted(sum([tf.gfile.Glob(x) for x in filenames], []))
         if not filenames:
-            raise ValueError('Empty dataset, did you mount gcsfuse bucket?', filenames_in)
+            raise ValueError(
+                "Empty dataset, did you mount gcsfuse bucket?", filenames_in
+            )
         if len(filenames) > 4:
+
             def fetch_dataset(filename):
                 buffer_size = 8 * 1024 * 1024  # 8 MiB per file
                 dataset = tf.data.TFRecordDataset(filename, buffer_size=buffer_size)
@@ -141,38 +170,45 @@ class DataSet:
             dataset = tf.data.Dataset.from_tensor_slices(filenames)
             dataset = dataset.apply(
                 tf.data.experimental.parallel_interleave(
-                    fetch_dataset,
-                    cycle_length=min(16, len(filenames)),
-                    sloppy=True))
+                    fetch_dataset, cycle_length=min(16, len(filenames)), sloppy=True
+                )
+            )
         else:
             dataset = tf.data.TFRecordDataset(filenames)
-        return cls(tf.data.TFRecordDataset(filenames),
-                   augment_fn=augment_fn,
-                   parse_fn=parse_fn,
-                   image_shape=image_shape)
+        return cls(
+            tf.data.TFRecordDataset(filenames),
+            augment_fn=augment_fn,
+            parse_fn=parse_fn,
+            image_shape=image_shape,
+        )
 
     @classmethod
     def empty_data(cls, image_shape, augment_fn: AugmentPair = None):
         def _get_null_input(_):
-            return dict(image=tf.zeros(image_shape, tf.float32),
-                        label=tf.constant(0, tf.int64))
+            return dict(
+                image=tf.zeros(image_shape, tf.float32), label=tf.constant(0, tf.int64)
+            )
 
-        return cls(tf.data.Dataset.range(FLAGS.batch).map(_get_null_input),
-                   parse_fn=None,
-                   augment_fn=augment_fn,
-                   image_shape=image_shape)
+        return cls(
+            tf.data.Dataset.range(FLAGS.batch).map(_get_null_input),
+            parse_fn=None,
+            augment_fn=augment_fn,
+            image_shape=image_shape,
+        )
 
     def __getattr__(self, item):
         if item in self.__dict__:
             return self.__dict__[item]
 
         def call_and_update(*args, **kwargs):
-            v = getattr(self.__dict__['data'], item)(*args, **kwargs)
+            v = getattr(self.__dict__["data"], item)(*args, **kwargs)
             if isinstance(v, tf.data.Dataset):
-                return self.__class__(v,
-                                      parse_fn=self.parse_fn,
-                                      augment_fn=self.augment_fn,
-                                      image_shape=self.image_shape)
+                return self.__class__(
+                    v,
+                    parse_fn=self.parse_fn,
+                    augment_fn=self.augment_fn,
+                    image_shape=self.image_shape,
+                )
             return v
 
         return call_and_update
@@ -205,8 +241,8 @@ class DataSet:
                     data.append(session.run(it))
             except tf.errors.OutOfRangeError:
                 pass
-        images = np.stack([x['image'] for x in data])
-        labels = np.stack([x['label'] for x in data])
+        images = np.stack([x["image"] for x in data])
+        labels = np.stack([x["label"] for x in data])
 
         def tf_get(index, image_shape):
             def get(index):
@@ -215,15 +251,31 @@ class DataSet:
             image, label = tf.py_func(get, [index], [tf.float32, tf.int64])
             return dict(image=tf.reshape(image, image_shape), label=label, index=index)
 
-        return self.__class__(tf.data.Dataset.range(len(data)),
-                              parse_fn=tf_get,
-                              augment_fn=self.augment_fn,
-                              image_shape=self.image_shape)
+        return self.__class__(
+            tf.data.Dataset.range(len(data)),
+            parse_fn=tf_get,
+            augment_fn=self.augment_fn,
+            image_shape=self.image_shape,
+        )
 
 
 class DataSets:
-    def __init__(self, name, train_labeled: DataSet, train_unlabeled: DataSet, test: DataSet, valid: DataSet,
-                 height=32, width=32, colors=3, nclass=10, mean=0, std=1, p_labeled=None, p_unlabeled=None):
+    def __init__(
+        self,
+        name,
+        train_labeled: DataSet,
+        train_unlabeled: DataSet,
+        test: DataSet,
+        valid: DataSet,
+        height=32,
+        width=32,
+        colors=3,
+        nclass=10,
+        mean=0,
+        std=1,
+        p_labeled=None,
+        p_unlabeled=None,
+    ):
         self.name = name
         self.train_labeled = train_labeled
         self.train_unlabeled = train_unlabeled
@@ -239,26 +291,40 @@ class DataSets:
         self.p_unlabeled = p_unlabeled
 
     @classmethod
-    def creator(cls, name, seed, label, valid, augment, parse_fn=record_parse, do_memoize=False,
-                nclass=10, colors=3, height=32, width=32):
+    def creator(
+        cls,
+        name,
+        seed,
+        label,
+        valid,
+        augment,
+        parse_fn=record_parse,
+        do_memoize=False,
+        nclass=10,
+        colors=3,
+        height=32,
+        width=32,
+    ):
         if not isinstance(augment, list):
             augment = augment(name)
-        fullname = '.%d@%d' % (seed, label)
-        root = os.path.join(DATA_DIR, 'SSL2', name)
+        fullname = ".%d@%d" % (seed, label)
+        root = os.path.join(DATA_DIR, "SSL2", name)
 
         def create():
             p_labeled = p_unlabeled = None
 
             if FLAGS.p_unlabeled:
-                sequence = FLAGS.p_unlabeled.split(',')
+                sequence = FLAGS.p_unlabeled.split(",")
                 p_unlabeled = np.array(list(map(float, sequence)), dtype=np.float32)
                 p_unlabeled /= np.max(p_unlabeled)
 
             image_shape = [height, width, colors]
             train_labeled = DataSet.from_files(
-                [root + fullname + '-label.tfrecord'], augment[0], parse_fn, image_shape)
+                [root + fullname + "-label.tfrecord"], augment[0], parse_fn, image_shape
+            )
             train_unlabeled = DataSet.from_files(
-                [root + '-unlabel.tfrecord'], augment[1], parse_fn, image_shape)
+                [root + f".{seed}-unlabel.tfrecord"], augment[1], parse_fn, image_shape
+            )
             if do_memoize:
                 train_labeled = train_labeled.memoize()
                 train_unlabeled = train_unlabeled.memoize()
@@ -269,35 +335,99 @@ class DataSets:
                 mean, std = 0, 1
 
             test_data = DataSet.from_files(
-                [os.path.join(DATA_DIR, '%s-test.tfrecord' % name)], NOAUGMENT, parse_fn, image_shape=image_shape)
+                [os.path.join(DATA_DIR, "%s-test.tfrecord" % name)],
+                NOAUGMENT,
+                parse_fn,
+                image_shape=image_shape,
+            )
 
-            return cls(name + '.' + FLAGS.augment + fullname + '-' + str(valid)
-                       + ('/' + FLAGS.p_unlabeled if FLAGS.p_unlabeled else ''),
-                       train_labeled=train_labeled,
-                       train_unlabeled=train_unlabeled.skip(valid),
-                       valid=train_unlabeled.take(valid),
-                       test=test_data,
-                       nclass=nclass, p_labeled=p_labeled, p_unlabeled=p_unlabeled,
-                       height=height, width=width, colors=colors, mean=mean, std=std)
+            return cls(
+                name
+                + "."
+                + FLAGS.augment
+                + fullname
+                + "-"
+                + str(valid)
+                + ("/" + FLAGS.p_unlabeled if FLAGS.p_unlabeled else ""),
+                train_labeled=train_labeled,
+                train_unlabeled=train_unlabeled.skip(valid),
+                valid=train_unlabeled.take(valid),
+                test=test_data,
+                nclass=nclass,
+                p_labeled=p_labeled,
+                p_unlabeled=p_unlabeled,
+                height=height,
+                width=width,
+                colors=colors,
+                mean=mean,
+                std=std,
+            )
 
-        return name + fullname + '-' + str(valid), create
+        return name + fullname + "-" + str(valid), create
 
 
 def create_datasets(augment_fn):
     d = {}
-    d.update([DataSets.creator('cifar10', seed, label, valid, augment_fn)
-              for seed, label, valid in itertools.product(range(6), [10 * x for x in SAMPLES_PER_CLASS], [1, 5000])])
-    d.update([DataSets.creator('cifar100', seed, label, valid, augment_fn, nclass=100)
-              for seed, label, valid in itertools.product(range(6), [400, 1000, 2500, 10000], [1, 5000])])
-    d.update([DataSets.creator('fashion_mnist', seed, label, valid, augment_fn, height=32, width=32, colors=1,
-                               parse_fn=record_parse_mnist)
-              for seed, label, valid in itertools.product(range(6), [10 * x for x in SAMPLES_PER_CLASS], [1, 5000])])
-    d.update([DataSets.creator('stl10', seed, label, valid, augment_fn, height=96, width=96)
-              for seed, label, valid in itertools.product(range(6), [1000, 5000], [1, 500])])
-    d.update([DataSets.creator('svhn', seed, label, valid, augment_fn)
-              for seed, label, valid in itertools.product(range(6), [10 * x for x in SAMPLES_PER_CLASS], [1, 5000])])
-    d.update([DataSets.creator('svhn_noextra', seed, label, valid, augment_fn)
-              for seed, label, valid in itertools.product(range(6), [10 * x for x in SAMPLES_PER_CLASS], [1, 5000])])
+    d.update(
+        [
+            DataSets.creator("cifar10", seed, label, valid, augment_fn)
+            for seed, label, valid in itertools.product(
+                range(6), [10 * x for x in SAMPLES_PER_CLASS], [1, 5000]
+            )
+        ]
+    )
+    d.update(
+        [
+            DataSets.creator("cifar100", seed, label, valid, augment_fn, nclass=100)
+            for seed, label, valid in itertools.product(
+                range(6), [400, 1000, 2500, 10000], [1, 5000]
+            )
+        ]
+    )
+    d.update(
+        [
+            DataSets.creator(
+                "fashion_mnist",
+                seed,
+                label,
+                valid,
+                augment_fn,
+                height=32,
+                width=32,
+                colors=1,
+                parse_fn=record_parse_mnist,
+            )
+            for seed, label, valid in itertools.product(
+                range(6), [10 * x for x in SAMPLES_PER_CLASS], [1, 5000]
+            )
+        ]
+    )
+    d.update(
+        [
+            DataSets.creator(
+                "stl10", seed, label, valid, augment_fn, height=96, width=96
+            )
+            for seed, label, valid in itertools.product(
+                range(6), [1000, 5000], [1, 500]
+            )
+        ]
+    )
+    d.update(
+        [
+            DataSets.creator("svhn", seed, label, valid, augment_fn)
+            for seed, label, valid in itertools.product(
+                range(6), [10 * x for x in SAMPLES_PER_CLASS], [1, 5000]
+            )
+        ]
+    )
+    d.update(
+        [
+            DataSets.creator("svhn_noextra", seed, label, valid, augment_fn)
+            for seed, label, valid in itertools.product(
+                range(6), [10 * x for x in SAMPLES_PER_CLASS], [1, 5000]
+            )
+        ]
+    )
     return d
 
 
