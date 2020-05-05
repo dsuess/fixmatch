@@ -1,17 +1,17 @@
-md5: 58cfbc862f57d4054d541068c63e9f6e
+md5: 2622fcccc95a96fb4da1789b6026bbfb
 cmd: CUDA_VISIBLE_DEVICES= papermill "notebooks/Unbalanced Dataset Generation.ipynb"
   "output/Unbalanced Dataset Generation.ipynb" -k python3 -p TRAIN_TFRECORD data/cifar10-train.tfrecord
   -p SCALING linear -p FRACTION 10 -p TOTAL_SAMPLES 25000 -p SEED 12345 -p OUTPUT_DIR
-  unbalanced_data/cifar10-25000-linear-10-no-resample -p NAME cifar10 && cp data/cifar10-test.tfrecord
-  unbalanced_data/cifar10-25000-linear-10-no-resample/
+  unbalanced_data/cifar10-25000-linear-10-no-resample-2x -p NAME cifar10 -p RESAMPLE_LABELED
+  False -p RESAMPLE_UNLABELED False && cp data/cifar10-test.tfrecord unbalanced_data/cifar10-25000-linear-10-no-resample-2x/
 
 wdir: ..
 deps:
 - md5: 83f30c5db9016308e33bbd78a2932159.dir
   path: data
 outs:
-- md5: 7b8578f7111d6d2272a2f3cafe024413.dir
-  path: unbalanced_data/cifar10-25000-linear-10-no-resample
+- md5: 23319f06ab9d704c15baef13c8e717b8.dir
+  path: unbalanced_data/cifar10-25000-linear-10-no-resample-2x
   cache: true
   metric: false
   persist: false
@@ -19,4 +19,4 @@ outs:
   cache: true
   metric: false
   persist: false
-  md5: 8692f3d5317c7c165b78657aef39b648
+  md5: 9040ddf02b5ea09d9fa8c4d310e04d70

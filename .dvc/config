@@ -1,0 +1,13 @@
+['remote "origin"']
+url = s3://dvc-s3-storage/fixmatch/
+profile = silverpond
+credentialpath = /home/users/daniel/.aws/credentials
+region = ap-southeast-2
+
+[core]
+remote=origin
+
+[cache]
+type = "symlink,hardlink,reflink"
+protected = true
+dir = /mnt/scratch/dvc_cache
